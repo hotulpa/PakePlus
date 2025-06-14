@@ -1,22 +1,426 @@
 <!DOCTYPE html>
-<html lang="en">
-    <head>
-        <meta charset="UTF-8" />
-        <link rel="stylesheet" href="styles.css" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>PakePlus App</title>
-        <script type="module" src="/main.js" defer></script>
-    </head>
+<html lang="zh-CN" data-bs-theme="dark" manifest="cache.manifest">
 
-    <body>
-        <main class="container">
-            <h1>Welcome to PakePlus</h1>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+    <title>分类导航系统</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/foundation-sites@6.7.5/dist/css/foundation.min.css">
+    <style>
+        /* 添加触摸行为限制 */
+        html,
+        body {
+            touch-action: manipulation;
+            overscroll-behavior: contain;
+            -ms-touch-action: manipulation;
+            overflow: hidden;
+            /* 禁止外屏滑动 */
+        }
 
-            <form class="row" id="greet-form">
-                <input id="greet-input" placeholder="Enter a name..." />
-                <button type="submit">Greet</button>
-            </form>
-            <p id="greet-msg"></p>
-        </main>
-    </body>
-</html>
+        /* 禁用双击缩放 */
+        * {
+            touch-action: pan-x pan-y;
+            /* 允许水平和垂直平移 */
+            -webkit-user-scalable: no;
+            user-scalable: no;
+        }
+
+        body {
+            background-color: #121212;
+            color: #a0aec0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* 标题样式 */
+       .page-title {
+            @apply text-center text-3xl py-6 text-gray-300;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            animation: fadeInDown 0.8s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* 主分类导航样式 */
+       .nav-category {
+            @apply flex flex-nowrap overflow-x-auto bg-gray-900 py-6 px-8 border-b border-gray-800 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            animation: fadeInLeft 0.8s ease-out;
+        }
+
+        @keyframes fadeInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+       .nav-link {
+            @apply text-gray-400 px-8 py-4 whitespace-nowrap text-xl rounded-md transition-all duration-300 mr-6;
+        }
+
+       .nav-link.active {
+            @apply bg-gray-700 text-white;
+            transform: scale(1.05);
+        }
+
+       .nav-link:hover {
+            @apply bg-gray-700 text-white;
+        }
+
+        /* 二级分类导航样式 */
+       .subcategory-nav-wrapper {
+            @apply flex flex-nowrap overflow-x-auto pb-6 mb-8 px-8 scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-gray-800;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            animation: fadeInUp 0.8s ease-out;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+       .sub-category-card {
+            @apply cursor-pointer bg-gray-800 border-none px-6 py-4 mr-8 flex-shrink-0 text-center whitespace-nowrap rounded-md transition-all duration-300 min-w-[180px];
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+       .sub-category-card.active {
+            @apply bg-gray-600 text-white;
+            transform: scale(1.05);
+        }
+
+       .sub-category-card:hover {
+            @apply bg-gray-600 text-white;
+        }
+
+        /* 内容卡片样式 */
+       .content-card {
+            @apply bg-gray-900 border border-gray-800 mb-4 p-5 cursor-pointer rounded-lg;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            transition: all 0.3s ease;
+        }
+
+       .content-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        /* 折叠框样式 */
+       .collapse-box {
+            @apply bg-gray-900 border border-gray-800 my-2 rounded-lg;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+       .collapse-header {
+            @apply p-3 cursor-pointer flex justify-between items-center text-gray-400;
+            transition: all 0.3s ease;
+        }
+
+       .collapse-header:hover {
+            @apply text-white;
+        }
+
+       .collapse-content {
+            @apply hidden border-t border-gray-700 p-3 text-gray-400;
+            /* 添加过渡效果 */
+            transition: max-height 0.3s ease-out, opacity 0.3s ease-out;
+            max-height: 0;
+            opacity: 0;
+            overflow: hidden;
+        }
+
+       .active-content {
+            @apply block;
+            max-height: 1000px; /* 一个足够大的值 */
+            opacity: 1;
+        }
+
+       .indicator {
+            @apply w-2 h-2 border-r border-b border-gray-600 rotate-45 ml-3 transition-transform duration-300;
+        }
+
+       .active-indicator {
+            @apply rotate-135;
+        }
+
+        /* 横屏样式 */
+        @media (orientation: landscape) {
+           .nav-category,
+           .subcategory-nav-wrapper {
+                display: flex;
+            }
+           .page-title,
+           .content-wrapper {
+                display: none;
+            }
+        }
+
+        /* 骨架屏样式 */
+       .skeleton {
+            background: linear-gradient(90deg, #1a1a1a 25%, #242424 50%, #1a1a1a 75%);
+            background-size: 200% 100%;
+            animation: loading 1.5s infinite;
+        }
+
+        @keyframes loading {
+            0% {
+                background-position: 200% 0;
+            }
+            100% {
+                background-position: -200% 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 骨架屏 -->
+    <div class="skeleton fixed top-0 left-0 w-full h-full z-50 hidden" id="skeletonScreen">
+        <div class="page-title skeleton h-16 my-4"></div>
+        <div class="nav-category skeleton h-12 mb-4"></div>
+        <div class="subcategory-nav-wrapper skeleton h-10 mb-4"></div>
+        <div class="content-card skeleton h-24 mb-4"></div>
+        <div class="content-card skeleton h-24 mb-4"></div>
+    </div>
+
+    <div class="page-title">Tulpa</div>
+    <!-- 主折叠框 -->
+    <div class="collapse-box">
+        <div class="collapse-header" onclick="toggleCollapse(this)">
+            菜单:特别提醒和简介
+            <span class="indicator"></span>
+        </div>
+        <div class="collapse-content">
+            <p>Tulpa（读音：偷帕）是一种新兴的心理学现象，在表现上类似于幻想伙伴。</p>
+            <p><small>Tulpamancy作为<span>心理学技法</span>，是否创造tulpa纯属个人选择。</small></p>
+        </div>
+    </div>
+    <ul class="nav nav-category" id="mainCategory">
+        <li class="nav-item">
+            <a class="nav-link active" data-category="tutorial" href="#">教程</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-category="chat" href="#">杂谈</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-category="guide" href="#">指南</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-category="roster" href="#">花名册</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-category="archive" href="#">归档</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" data-category="research" href="#">论文</a>
+        </li>
+    </ul>
+    <!-- 教程二级分类 -->
+    <div id="tutorialContent" class="subcategory-container">
+        <div class="subcategory-nav-wrapper">
+            <div class="sub-category-card" data-subcategory="beginner">
+                <h6 class="mb-1 text-gray-400">入门普及</h6>
+                <div class="text-sm text-gray-500">推荐</div>
+            </div>
+            <div class="sub-category-card" data-subcategory="intermediate">
+                <h6 class="mb-1 text-gray-400">叙述对话</h6>
+                <div class="text-sm text-gray-500">倾诉</div>
+            </div>
+            <div class="sub-category-card" data-subcategory="advanced">
+                <h6 class="mb-1 text-gray-400">描绘投影</h6>
+                <div class="text-sm text-gray-500">思维</div>
+            </div>
+            <div class="sub-category-card" data-subcategory="tools">
+                <h6 class="mb-1 text-gray-400">其他教程</h6>
+                <div class="text-sm text-gray-500">不被归类</div>
+            </div>
+            <div class="sub-category-card" data-subcategory="possession">
+                <h6 class="mb-1 text-gray-400">附体 / 交换</h6>
+                <div class="text-sm text-gray-500">相关技巧</div>
+            </div>
+        </div>
+        <div class="content-wrapper">
+            <!-- 这里可以添加每个二级分类对应的内容 -->
+            <div class="game-list" data-subcategory="beginner">
+                <div class="content-card">
+                    <h3 class="text-lg text-gray-300">Tulpa 基础概念</h3>
+                    <p class="text-gray-400">Tulpa 是一种由意识创造出来的独立存在，它源于藏传佛教的概念，在现代心理学中也有相关研究。</p>
+                </div>
+                <div class="content-card">
+                    <h3 class="text-lg text-gray-300">Tulpa 常见误区</h3>
+                    <p class="text-gray-400">很多人认为 Tulpa 是一种超自然现象，但实际上它是基于心理学原理的一种现象。</p>
+                </div>
+            </div>
+            <div class="game-list" data-subcategory="intermediate">
+                <div class="content-card">
+                    <h3 class="text-lg text-gray-300">叙述对话技巧</h3>
+                    <p class="text-gray-400">与 Tulpa 进行叙述对话时，要保持专注和真诚，这样可以更好地建立联系。</p>
+                </div>
+                <div class="content-card">
+                    <h3 class="text-lg text-gray-300">情感交流要点</h3>
+                    <p class="text-gray-400">在与 Tulpa 交流情感时，要注意倾听和理解，这样可以增强彼此的信任。</p>
+                </div>
+            </div>
+            <div class="game-list" data-subcategory="advanced">
+                <div class="content-card">
+                    <h3 class="text-lg text-gray-300">深度描绘投影</h3>
+                    <p class="text-gray-400">深度描绘投影可以让 Tulpa 更加真实和立体，需要运用丰富的想象力和专注力。</p>
+                </div>
+                <div class="content-card">
+                    <h3 class="text-lg text-gray-300">思维同步方法</h3>
+                    <p class="text-gray-400">实现与 Tulpa 的思维同步需要长期的练习和默契，可以通过冥想等方式来进行。</p>
+                </div>
+            </div>
+            <div class="game-list" data-subcategory="tools">
+                <div class="content-card">
+                    <h3 class="text-lg text-gray-300">辅助工具介绍</h3>
+                    <p class="text-gray-400">有一些辅助工具可以帮助你更好地与 Tulpa 互动，如日记、绘画等。</p>
+                </div>
+                <div class="content-card">
+                    <h3 class="text-lg text-gray-300">在线资源推荐</h3>
+                    <p class="text-gray-400">网上有很多关于 Tulpa 的论坛和社区，你可以在那里找到更多的信息和经验分享。</p>
+                </div>
+            </div>
+            <div class="game-list" data-subcategory="possession">
+                <div class="content-card">
+                    <h3 class="text-lg text-gray-300">附体技巧讲解</h3>
+                    <p class="text-gray-400">附体是一种比较高级的技巧，需要在安全和可控的环境下进行，要确保双方的意愿一致。</p>
+                </div>
+                <div class="content-card">
+                    <h3 class="text-lg text-gray-300">交换体验分享</h3>
+                    <p class="text-gray-400">与 Tulpa 进行交换体验可以让你更好地了解彼此，但也需要谨慎操作。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 友情链接折叠框 -->
+    <div class="container py-3">
+        <div class="collapse-box">
+            <div class="collapse-header" onclick="toggleCollapse(this)">
+                友情网站跟禁止事项(所有文章截止20250419)
+                <span class="indicator"></span>
+            </div>
+            <div class="collapse-content">
+                <p><a href="https://www.pluralitycn.com" class="text-gray-400 hover:text-white">【社群主页】中文多意识体社群 – PluralityCN</a></p>
+                <p><a href="https://portal.pluralitycn.com" class="text-gray-400 hover:text-white">【门户网站】泛多意识体社群网址导航</a></p>
+                <p><a href="https://wiki.pluralitycn.com" class="text-gray-400 hover:text-white">【维基百科】多意识体百科</a></p>
+                <p><a href="https://library.pluralitycn.com" class="text-gray-400 hover:text-white">【图书馆】多意识体图书馆</a></p>
+                <p><a href="https://www.tulpa.info/" class="text-gray-400 hover:text-white">Tulpa英文网站</a></p>
+                <p><a href="https://pluralpedia.org/w/Main_Page" class="text-gray-400 hover:text-white">多意识体英文百科</a></p>
+                <p><a href="https://www.zhihu.com/column/c_1465112539088949248" class="text-gray-400 hover:text-white">多重人格手册专栏</a></p>
+                <p><a href="https://mhresearch.heili.tech/plural/thepluralitytestchinese.html" class="text-gray-400 hover:text-white">多重人格测试</a></p>
+            </div>
+            <div class="collapse-header" onclick="toggleCollapse(this)">
+                注意事项
+                <span class="indicator"></span>
+            </div>
+            <div class="collapse-content">
+                <p class="text-gray-400">请遵守社区的相关规定，共同维护良好的交流环境。</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleCollapse(header) {
+            const indicator = header.querySelector('.indicator');
+            const content = header.nextElementSibling;
+            const isActive = content.classList.toggle('active-content');
+            indicator.classList.toggle('active-indicator', isActive);
+
+            if (isActive) {
+                content.style.maxHeight = content.scrollHeight + 'px';
+            } else {
+                content.style.maxHeight = '0';
+            }
+        }
+
+        // 主分类切换
+        document.querySelectorAll('#mainCategory .nav-link').forEach(link => {
+            link.addEventListener('click', function (e) {
+                e.preventDefault();
+                document.querySelectorAll('#mainCategory .nav-link').forEach(nav => {
+                    nav.classList.remove('active');
+                });
+                this.classList.add('active');
+
+                const category = this.dataset.category;
+                document.querySelectorAll('.subcategory-container').forEach(container => {
+                    container.classList.add('hidden');
+                });
+
+                const targetContainer = document.getElementById(`${category}Content`);
+                if (targetContainer) {
+                    targetContainer.classList.remove('hidden');
+                }
+            });
+        });
+
+        // 二级分类切换
+        document.querySelectorAll('.subcategory-container').forEach(container => {
+            const subNavWrapper = container.querySelector('.subcategory-nav-wrapper');
+            if (subNavWrapper) {
+                subNavWrapper.addEventListener('click', function (e) {
+                    const card = e.target.closest('.sub-category-card');
+                    if (!card) return;
+
+                    container.querySelectorAll('.sub-category-card').forEach(c => {
+                        c.classList.remove('active');
+                    });
+                    card.classList.add('active');
+
+                    const subcategory = card.dataset.subcategory;
+                    const listContainer = container.querySelector('.content-wrapper');
+
+                    if (listContainer) {
+                        listContainer.querySelectorAll('.game-list').forEach(list => {
+                            list.style.display = 'none';
+                        });
+
+                        const targetList = listContainer.querySelector(`.game-list[data-subcategory="${subcategory}"]`);
+                        if (targetList) {
+                            targetList.style.display = 'block';
+                        }
+                    }
+                });
+            }
+        });
+
+        // 模拟加载
+        window.onload = function () {
+            const skeleton = document.getElementById('skeletonScreen');
+            skeleton.classList.add('hidden');
+            // 初始显示入门普及的内容
+            const beginnerList = document.querySelector('.game-list[data-subcategory="beginner"]');
+            if (beginnerList) {
+                beginnerList.style.display = 'block';
+            }
+            const beginnerCard = document.querySelector('.sub-category-card[data-subcategory="beginner"]');
+            if (beginnerCard) {
+                beginnerCard.classList.add('active');
+            }
+        };
+    </script>
+</body>
+
+</html>    
